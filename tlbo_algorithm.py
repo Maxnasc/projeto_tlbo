@@ -59,7 +59,7 @@ def mutate(cl, gamma_seed, data_config, fit):
     new_x2 = min(x2_top, max(x2_base, cl[1] + random.uniform(-alfa_x2, alfa_x2)))
     return [new_x1, new_x2]
 
-def run_tlbo(iterations, P, data_config, opposition):
+def run_tlbo_flowchart(iterations, P, data_config, opposition):
     population = initialize(P, data_config, opposition)
     scores = run_function(data_config, population)
 
@@ -153,5 +153,5 @@ if __name__ == "__main__":
             "x2": {"base": -10, "top": 10},
         },
     }
-    score, scores = run_tlbo(iterations=30, P=100, data_config=data_config, opposition=False)
+    score, scores = run_tlbo_flowchart(iterations=30, P=100, data_config=data_config, opposition=False)
     print(score)

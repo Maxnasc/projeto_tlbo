@@ -4,17 +4,17 @@ import matplotlib.pyplot as plt
 import itertools
 import statistics
 
-from tlbo_algorithm import run_clonal_g
+from tlbo_algorithm import run_tlbo_flowchart
 
 
-def get_result_and_plot(generations, m, data_config, SR, CR, gamma, opposition, config_code):
+def get_result_and_plot(generations, m, data_config, opposition, config_code):
     all_results = []
     all_scores_g = []
     best_result = None
     best_score = float('inf')  # ou float('-inf') dependendo se você minimiza ou maximiza
 
     for i in range(1):
-        result, scores_g = run_clonal_g(generations=generations, P=m, SR=SR, CR=CR, gama_seed=gamma, data_config=data_config, opposition=opposition)
+        result, scores_g = run_tlbo_flowchart(iterations=generations, P=m, data_config=data_config, opposition=opposition)
         all_results.append(result)
         all_scores_g.append(scores_g)
 
@@ -34,9 +34,6 @@ def get_result_and_plot(generations, m, data_config, SR, CR, gamma, opposition, 
     return {
         "best_result": best_result,
         "mean_scores_g": mean_scores_g,
-        "SR": SR,
-        "CR": CR,
-        "gamma": gamma,
         "opposition": opposition,
         "generations": generations,
         "m": m,
@@ -58,9 +55,6 @@ def your_function_to_track():
         },
     }
     all_results = []
-
-    SR = 0.8
-    CRs = [0.45, 0.6, 0.8]
     oppositions = [True, False]
     gamma = 0.1  # Constante
 
@@ -68,9 +62,9 @@ def your_function_to_track():
 
     for problem, target in {"shubert": -186.7309, "camel": -1.0316}.items():
         data_config["problem"] = problem
-        for CR, opposition in itertools.product(CRs, oppositions):
-            print(f"Rodando: prob={problem}, gen={generations}, m={m}, SR={SR}, CR={CR}, gamma={gamma}, opp={opposition}, config={config_counter}")
-            result_dict = get_result_and_plot(generations, m, data_config, SR, CR, gamma, opposition, config_counter)
+        for opposition in itertools.product(oppositions):
+            print(f"Rodando: prob={problem}, gen={generations}, m={m}, opp={opposition}, config={config_counter}")
+            result_dict = get_result_and_plot(generations, m, data_config, opposition, config_counter)
             all_results.append(result_dict)
             config_counter += 1
 
@@ -86,7 +80,7 @@ def your_function_to_track():
         plt.grid(True)
         plt.xticks(
             range(1, len(data) + 1),
-            [f"CR={r['CR']}, Opp={r['opposition']}" for _, r in data.iterrows()],
+            [f"Opp={r['opposition']}" for _, r in data.iterrows()],
             rotation=45,
             ha="right"
         )
@@ -111,14 +105,17 @@ def your_function_to_track():
         df_ga_camel_PSO = pd.read_csv("previous_results/melhores_fitness_camel_PSO.csv", header=None)
         df_ga_shubert_de = pd.read_csv("previous_results/melhores_fitness_shubert_de.csv", header=None)
         df_ga_camel_de = pd.read_csv("previous_results/melhores_fitness_camel_de.csv", header=None)
+        df_ga_shubert_clonalg = pd.read_csv("previous_results/melhores_fitness_shubert_clonalg.csv", header=None)
+        df_ga_camel_clonalg = pd.read_csv("previous_results/melhores_fitness_camel_clonalg.csv", header=None)
 
         # === Gráfico de comparação SHUBERT
         plt.figure(figsize=(8, 5))
         plt.axhline(y=-186.7309, color="r", linestyle="--", label="Valor esperado (target)")
-        plt.plot(range(1, len(best_shubert["mean_scores_g"]) + 1), best_shubert["mean_scores_g"], 'o-', label=f"CLONALG (CR={best_shubert['CR']}, Opp={best_shubert['opposition']})", color="blue")
+        plt.plot(range(1, len(best_shubert["mean_scores_g"]) + 1), best_shubert["mean_scores_g"], 'o-', label=f"TLBO (Opp={best_shubert['opposition']})", color="blue")
         plt.plot(ast.literal_eval(df_ga_shubert_GA.iloc[7].values[1]), 'x-', label="GA", color="green")
         plt.plot(ast.literal_eval(df_ga_shubert_PSO.iloc[4].values[1]), 'x-', label="PSO", color="orange")
         plt.plot(ast.literal_eval(df_ga_shubert_de.iloc[1].values[1]), 'x-', label="DE", color="red")
+        plt.plot(ast.literal_eval(df_ga_shubert_clonalg.iloc[1].values[1]), 'x-', label="CLONALG", color="black")
         plt.title("Comparação da evolução do GA e DE - Shubert")
         plt.xlabel("Gerações")
         plt.ylabel("Score")
@@ -129,16 +126,18 @@ def your_function_to_track():
         # === Gráfico de comparação CAMEL
         plt.figure(figsize=(8, 5))
         plt.axhline(y=-1.0316, color="r", linestyle="--", label="Valor esperado (target)")
-        plt.plot(range(1, len(best_camel["mean_scores_g"]) + 1), best_camel["mean_scores_g"], 'o-', label=f"clonalf (CR={best_camel['CR']}, Opp={best_camel['opposition']})", color="blue")
+        plt.plot(range(1, len(best_camel["mean_scores_g"]) + 1), best_camel["mean_scores_g"], 'o-', label=f"TLBO (Opp={best_camel['opposition']})", color="blue")
         plt.plot(ast.literal_eval(df_ga_camel_GA.iloc[7].values[1]), 'x-', label="GA", color="green")
         plt.plot(ast.literal_eval(df_ga_camel_PSO.iloc[4].values[1]), 'x-', label="PSO", color="orange")
         plt.plot(ast.literal_eval(df_ga_camel_de.iloc[1].values[1]), 'x-', label="DE", color="red")
+        plt.plot(ast.literal_eval(df_ga_camel_clonalg.iloc[1].values[1]), 'x-', label="CLONALG", color="black")
         plt.title("Comparação da evolução do GA e DE - Camel")
         plt.xlabel("Gerações")
         plt.ylabel("Score")
         plt.legend()
         plt.grid(True)
         plt.savefig('images/comparation_camel_de.png')
+        plt.ylim(-2.0, 0.0)
     except FileNotFoundError:
         print("Arquivos 'melhores_fitness_shubert.csv' ou 'melhores_fitness_camel.csv' não encontrados para comparação com GA.")
 
