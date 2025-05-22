@@ -40,25 +40,6 @@ def run_function(data_config, variables):
     else:
         return [(1 / (camel(x[0], x[1]) + 200)) for x in variables]
 
-def rank_population(population, scores):
-    indices = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)
-    return [population[i] for i in indices], [scores[i] for i in indices]
-
-def mutate(cl, gamma_seed, data_config, fit):
-    x1_base, x1_top = data_config['range']['x1']['base'], data_config['range']['x1']['top']
-    x2_base, x2_top = data_config['range']['x2']['base'], data_config['range']['x2']['top']
-    range_x1 = x1_top - x1_base
-    range_x2 = x2_top - x2_base
-
-    gamma_x1 = gamma_seed * range_x1
-    gamma_x2 = gamma_seed * range_x2
-    alfa_x1 = gamma_x1 * math.exp(-fit)
-    alfa_x2 = gamma_x2 * math.exp(-fit)
-
-    new_x1 = min(x1_top, max(x1_base, cl[0] + random.uniform(-alfa_x1, alfa_x1)))
-    new_x2 = min(x2_top, max(x2_base, cl[1] + random.uniform(-alfa_x2, alfa_x2)))
-    return [new_x1, new_x2]
-
 def run_tlbo_flowchart(iterations, P, data_config, opposition):
     population = initialize(P, data_config, opposition)
     scores = run_function(data_config, population)
@@ -145,6 +126,90 @@ def run_tlbo_flowchart(iterations, P, data_config, opposition):
     # Retorna o valor real da função objetivo para o melhor indivíduo encontrado
     return (1 / best_global_score) - 200, best_objective_values_per_iteration
 
+def run_tlbo_pseudocode(iterations, P, data_config, opposition):
+    population = initialize(P, data_config, opposition)
+    scores = run_function(data_config, population)
+
+    best_global_individual = population[scores.index(max(scores))]
+    best_global_score = max(scores)
+    
+    best_objective_values_per_iteration = [(1 / best_global_score) - 200]
+
+    for _ in range(iterations):
+        # Encontrar o professor da população atual
+        teacher_index = scores.index(max(scores))
+        teacher = population[teacher_index]
+        mean_vector = [statistics.mean([ind[d] for ind in population]) for d in [0, 1]]
+
+        new_population = []
+        new_scores = []
+
+        # Fase Professor
+        for i in range(P):
+            TF = random.choice([1, 2])
+            # Criar um novo aluno baseado no professor e na média
+            r_val = random.random()
+            teacher_learner = [
+                population[i][dim] + r_val * (teacher[dim] - TF * mean_vector[dim])
+                for dim in [0, 1]
+            ]
+            
+            # Garantir que os valores estejam dentro dos limites (Bound Checking)
+            x1_base, x1_top = data_config['range']['x1']['base'], data_config['range']['x1']['top']
+            x2_base, x2_top = data_config['range']['x2']['base'], data_config['range']['x2']['top']
+            teacher_learner[0] = max(x1_base, min(x1_top, teacher_learner[0]))
+            teacher_learner[1] = max(x2_base, min(x2_top, teacher_learner[1]))
+
+            teacher_learner_score = run_function(data_config, [teacher_learner])[0]
+            
+            if teacher_learner_score > scores[i]: # Compara com o score do indivíduo original na população
+                new_population.append(teacher_learner)
+                new_scores.append(teacher_learner_score)
+                if teacher_learner_score > best_global_score:
+                    best_global_score = teacher_learner_score
+                    best_global_individual = teacher_learner
+                # Fase Alunos
+                for i in range(P):
+                    j = random.choice([idx for idx in range(P) if idx != i])
+
+                    r_val = random.random()
+                    if scores[i] > scores[j]:
+                        student_learner = [
+                            population[i][dim] + r_val * (population[i][dim] - population[j][dim])
+                            for dim in [0, 1]
+                        ]
+                    else:
+                        student_learner = [
+                            population[i][dim] + r_val * (population[j][dim] - population[i][dim])
+                            for dim in [0, 1]
+                        ]
+
+                    # Garantir que os valores estejam dentro dos limites (Bound Checking)
+                    student_learner[0] = max(x1_base, min(x1_top, student_learner[0]))
+                    student_learner[1] = max(x2_base, min(x2_top, student_learner[1]))
+
+                    student_learner_score = run_function(data_config, [student_learner])[0]
+
+                    if student_learner_score > scores[i]:
+                        population[i] = student_learner
+                        scores[i] = student_learner_score
+                        if student_learner_score > best_global_score:
+                            best_global_score = student_learner_score
+                            best_global_individual = student_learner
+                    
+            else:
+                new_population.append(population[i]) # Mantém o indivíduo original se não houver melhoria
+                new_scores.append(scores[i])
+
+        # Atualiza a população e scores para a fase do aluno com os resultados da fase do professor
+        population = new_population[:] # Use slicing para criar uma cópia
+        scores = new_scores[:]
+        
+        best_objective_values_per_iteration.append((1/max(scores))-200)
+
+    # Retorna o valor real da função objetivo para o melhor indivíduo encontrado
+    return (1 / best_global_score) - 200, best_objective_values_per_iteration
+
 if __name__ == "__main__":
     data_config = {
         "problem": "shubert",
@@ -153,5 +218,6 @@ if __name__ == "__main__":
             "x2": {"base": -10, "top": 10},
         },
     }
-    score, scores = run_tlbo_flowchart(iterations=30, P=100, data_config=data_config, opposition=False)
+    # score, scores = run_tlbo_flowchart(iterations=30, P=100, data_config=data_config, opposition=False)
+    score, scores = run_tlbo_pseudocode(iterations=30, P=100, data_config=data_config, opposition=False)
     print(score)
